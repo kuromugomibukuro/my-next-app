@@ -1,97 +1,60 @@
 'use client'
 
-import { createClient } from '@/lib/supabase/client'
-import { useEffect, useState } from 'react'
-import Link from 'next/link'
+import { useState } from 'react'
 
 export default function Home() {
-  const [user, setUser] = useState<any>(null)
-  const [words, setWords] = useState<any[]>([])
+  const [clickInfo, setClickInfo] = useState<{ x: number; y: number; category: string } | null>(null)
 
-  const fetchData = () => {
-    const supabase = createClient()
+  const handleTreeClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = (e.clientX - rect.left) / rect.width  // 0〜1の割合
+    const y = (e.clientY - rect.top) / rect.height  // 0〜1の割合
 
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user || null)
-    })
+    // 上の半分なら「面白い」、下の半分なら「物騒」と判定
+    const category = y < 0.5 ? 'funny' : 'dark'
 
-    supabase
-      .from('words')
-      .select('*, meanings(*)')
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        setWords(data || [])
-      })
-  }
-
-  useEffect(() => {
-    fetchData()
-  }, [])
-
-  // ログアウト処理
-  const handleLogout = async () => {
-    const supabase = createClient()
-    const { error } = await supabase.auth.signOut()
-    if (error) {
-      console.error('ログアウトエラー:', error.message)
-      return
-    }
-    setUser(null)
-    alert('ログアウトしました')
+    setClickInfo({ x, y, category })
   }
 
   return (
-    <div style={{ maxWidth: 800, margin: '0 auto', padding: '2rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1>📚 ネットスラング辞書</h1>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          {user ? (
-            <>
-              <span style={{ fontSize: '0.9rem', color: '#666' }}>{user.email}</span>
-              <Link href="/submit">
-                <button style={{ padding: '0.5rem 1rem', background: '#0070f3', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
-                  ＋ 新規投稿
-                </button>
-              </Link>
-              <button
-                onClick={handleLogout}
-                style={{ padding: '0.5rem 1rem', background: '#e53e3e', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer' }}
-              >
-                ログアウト
-              </button>
-            </>
-          ) : (
-            <Link href="/login">
-              <button style={{ padding: '0.5rem 1rem', background: '#4285f4', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
-                ログイン
-              </button>
-            </Link>
-          )}
-        </div>
+    <div className="relative w-full h-screen overflow-hidden bg-black">
+      {/* 桜の画像 */}
+      <div
+        className="absolute inset-0 cursor-pointer"
+        onClick={handleTreeClick}
+      >
+        <img
+          src="/sakura.png"
+          alt="桜の木"
+          className="w-full h-full object-cover"
+        />
       </div>
 
-      {words && words.length > 0 ? (
-        words.map((word) => (
-          <div key={word.id} style={{ border: '1px solid #ddd', margin: '1rem 0', padding: '1rem', borderRadius: 8 }}>
-            <h2 style={{ margin: 0 }}>{word.word}</h2>
-            {word.user_email && (
-              <p style={{ margin: '0.3rem 0', fontSize: '0.85rem', color: '#888' }}>
-                投稿者: {word.user_email}
-              </p>
-            )}
-            {word.meanings && word.meanings.length > 0 ? (
-              <ul>
-                {word.meanings.map((m: any) => (
-                  <li key={m.id}>{m.meaning}</li>
-                ))}
-              </ul>
-            ) : (
-              <p style={{ color: '#999' }}>まだ意味が投稿されていません</p>
-            )}
-          </div>
-        ))
-      ) : (
-        <p>まだ語彙がありません。最初の投稿をしてみましょう！</p>
+      {/* クリックした場所に表示される仮のUI */}
+      {clickInfo && (
+        <div
+          className="absolute bg-white p-4 rounded-lg shadow-lg"
+          style={{
+            left: `${clickInfo.x * 100}%`,
+            top: `${clickInfo.y * 100}%`,
+            transform: 'translate(-50%, -50%)',
+          }}
+        >
+          <p className="font-bold">
+            {clickInfo.category === 'funny' ? '🎉 面白い系' : '🌑 物騒系'}
+          </p>
+          <p className="text-sm text-gray-500">
+            x: {(clickInfo.x * 100).toFixed(1)}% / y: {(clickInfo.y * 100).toFixed(1)}%
+          </p>
+          <button
+            className="mt-2 bg-pink-500 text-white px-4 py-2 rounded"
+            onClick={() => {
+              window.location.href = `/submit?category=${clickInfo.category}`
+            }}
+          >
+            ここに投稿
+          </button>
+        </div>
       )}
     </div>
   )
