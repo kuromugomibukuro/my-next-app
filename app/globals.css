@@ -29,3 +29,40 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+
+@keyframes petal-fall {
+  0% {
+    transform: translate(0, 0) rotateY(0deg) rotateX(0deg) scale(0.8);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  50% {
+    transform: translate(40vw, 30vh) rotateY(360deg) rotateX(180deg) scale(1.2);
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(80vw, 80vh) rotateY(720deg) rotateX(360deg) scale(0.8);
+    opacity: 0;
+  }
+}
+
+
+
+
+.petal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 5;
+  animation: petal-fall linear infinite;
+  user-select: none;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
