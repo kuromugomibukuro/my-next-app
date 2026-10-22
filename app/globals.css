@@ -66,3 +66,17 @@ body {
   transform-style: preserve-3d;
   will-change: transform;
 }
+
+/* 文字のフェードイン・アウト（不透明度20%〜60%） */
+@keyframes text-fade {
+  0%, 100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+.fade-text {
+  animation: text-fade 5s ease-in-out infinite;
+}
