@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 
+const ADMIN_EMAIL = 'syuuyou2014@gmail.com'
+
 export default function ThreadPage() {
   const params = useParams()
   const router = useRouter()
@@ -18,15 +20,12 @@ export default function ThreadPage() {
   const [newReply, setNewReply] = useState('')
   const [isSending, setIsSending] = useState(false)
 
-  // データ取得用の関数
   const fetchData = async () => {
     const supabase = createClient()
     
-    // ユーザー取得
     const { data: { user } } = await supabase.auth.getUser()
     setUser(user)
 
-    // 語彙データ取得
     const { data: word, error } = await supabase
       .from('words')
       .select('*, meanings(*)')
@@ -40,7 +39,6 @@ export default function ThreadPage() {
     }
     setWordData(word)
 
-    // 返信データ取得
     const { data: replyData } = await supabase
       .from('replies')
       .select('*')
@@ -74,10 +72,23 @@ export default function ThreadPage() {
       alert('返信に失敗しました')
       console.error(error)
     } else {
-      setNewReply('') // 入力欄をクリア
-      await fetchData() // 返信一覧を再取得
+      setNewReply('')
+      await fetchData()
     }
     setIsSending(false)
+  }
+
+  const handleDeleteReply = async (replyId: number) => {
+    if (!confirm('この返信を削除しますか？')) return
+
+    const supabase = createClient()
+    const { error } = await supabase.from('replies').delete().eq('id', replyId)
+
+    if (error) {
+      alert('削除に失敗しました')
+    } else {
+      await fetchData()
+    }
   }
 
   if (loading) return <div className="min-h-screen bg-gray-100 flex items-center justify-center">読み込み中...</div>
@@ -87,7 +98,6 @@ export default function ThreadPage() {
     <div className="min-h-screen bg-gradient-to-b from-pink-50 to-white">
       <div className="max-w-3xl mx-auto p-6">
         
-        {/* ヘッダー */}
         <div className="flex justify-between items-center mb-8">
           <Link href="/list" className="text-pink-600 hover:text-pink-800 font-bold cursor-pointer">
             ← 辞書一覧に戻る
@@ -95,7 +105,6 @@ export default function ThreadPage() {
           <span className="text-sm text-gray-500">作成者: {wordData.user_email}</span>
         </div>
 
-        {/* テーマ（語彙）のヘッダー */}
         <div className="bg-white rounded-3xl shadow-xl p-8 mb-8 border border-pink-100 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-pink-400 to-purple-400"></div>
           
@@ -116,28 +125,40 @@ export default function ThreadPage() {
           </div>
         </div>
 
-        {/* 会話エリア */}
         <div className="space-y-4 mb-8">
           <h2 className="text-xl font-bold text-gray-700 border-b pb-2">💬 この語彙についての会話</h2>
           
           {replies.length === 0 ? (
             <p className="text-gray-500 text-center py-4">まだ返信はありません。最初の会話を始めましょう！</p>
           ) : (
-            replies.map((reply) => (
-              <div key={reply.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-bold text-pink-600">{reply.user_email}</span>
-                  <span className="text-xs text-gray-400">
-                    {new Date(reply.created_at).toLocaleString('ja-JP')}
-                  </span>
+            replies.map((reply) => {
+              const canDelete = user?.email === reply.user_email || user?.email === ADMIN_EMAIL
+
+              return (
+                <div key={reply.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 relative group">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-bold text-pink-600">{reply.user_email}</span>
+                    <div className="flex items-center gap-4">
+                      <span className="text-xs text-gray-400">
+                        {new Date(reply.created_at).toLocaleString('ja-JP')}
+                      </span>
+                      {canDelete && (
+                        <button 
+                          onClick={() => handleDeleteReply(reply.id)}
+                          className="text-red-400 hover:text-red-600 text-sm opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer md:opacity-100"
+                        >
+                          🗑️ 削除
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-gray-700 whitespace-pre-wrap">{reply.content}</p>
                 </div>
-                <p className="text-gray-700 whitespace-pre-wrap">{reply.content}</p>
-              </div>
-            ))
+              )
+            })
           )}
         </div>
 
-        {/* 返信フォーム */}
         <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
           <h3 className="font-bold text-gray-700 mb-4">✍️ 会話に参加する</h3>
           {user ? (

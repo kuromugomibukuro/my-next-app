@@ -82,7 +82,6 @@ export default function SubmitPage({
 
     await supabase.from('meanings').insert({ word_id: wordData.id, meaning })
 
-    // 0.7秒後に、今作った語彙の会話画面（スレッド）へ飛ぶ
     setTimeout(() => {
       router.push(`/thread/${wordData.id}`)
     }, 700)
@@ -92,7 +91,8 @@ export default function SubmitPage({
     <div className="relative min-h-screen overflow-hidden bg-gray-900">
       <img src="/sakura-tree.png" alt="背景" className="absolute inset-0 w-full h-full object-cover z-0" />
 
-      <div className="absolute inset-0 z-10 pointer-events-none overflow-y-auto flex flex-col items-start pt-24 pb-10 pl-4 md:pl-10 w-full md:w-1/2">
+      {/* ★ 背景：語彙一覧（スマホでは隠す → hidden md:flex） */}
+      <div className="hidden md:flex absolute inset-y-0 left-0 z-10 pointer-events-none overflow-y-auto flex-col items-start pt-24 pb-10 pl-10 w-1/2">
         <div className="w-full max-w-lg">
           {words.map((word) => (
             <div key={word.id} className="border border-white/20 p-4 mb-4 rounded-xl bg-black/70 text-white shadow-lg backdrop-blur-md">
@@ -105,7 +105,8 @@ export default function SubmitPage({
         </div>
       </div>
 
-      <div className="relative z-20 max-w-2xl mx-auto p-6 min-h-screen flex flex-col justify-center md:ml-auto md:mr-10">
+      {/* ★ 前景：フォーム（スマホでは幅いっぱい） */}
+      <div className="relative z-20 max-w-2xl mx-auto p-6 min-h-screen flex flex-col justify-center md:ml-auto md:mr-10 w-full md:w-auto">
         <BackToSakuraButton />
         <div className="bg-white/95 backdrop-blur-xl border border-white/50 rounded-2xl shadow-2xl p-8">
           <h1 className="text-2xl font-bold mb-2 text-gray-800">✏️ 新しい語彙・会話を投稿</h1>

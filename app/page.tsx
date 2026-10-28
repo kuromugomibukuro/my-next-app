@@ -90,7 +90,6 @@ export default function Home() {
 
     const category = getCategoryFromPosition(xRatio, yRatio)
     
-    // ズーム演出開始
     setClickPos({ x: e.clientX, y: e.clientY })
     setIsZooming(true)
 
@@ -136,6 +135,7 @@ export default function Home() {
         </div>
       </div>
 
+      {/* ★ ヘッダー */}
       <div className="absolute top-0 left-0 right-0 z-20 flex justify-between items-center p-4">
         <div className="flex items-center gap-4">
           <h1 className="text-2xl font-bold text-white drop-shadow-lg">📚 ネットスラング辞書</h1>
@@ -144,6 +144,14 @@ export default function Home() {
           {user ? (
             <>
               <span className="text-white text-sm drop-shadow hidden md:inline">{user.email}</span>
+              
+              {/* ★ 管理者のみ表示 */}
+              {user.email === 'syuuyou2014@gmail.com' && (
+                <Link href="/admin" className="px-3 py-2 bg-yellow-500/80 text-white rounded-lg hover:bg-yellow-600 cursor-pointer text-sm font-bold">
+                  👑 管理
+                </Link>
+              )}
+
               <Link href="/list" className="px-4 py-2 bg-white/90 text-gray-800 rounded-lg hover:bg-white cursor-pointer">辞書を見る</Link>
               <button onClick={handleLogout} className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 cursor-pointer">ログアウト</button>
             </>
@@ -153,6 +161,7 @@ export default function Home() {
         </div>
       </div>
 
+      {/* 検索バー */}
       <div className="absolute bottom-8 left-0 right-0 z-20 flex justify-center px-4">
         <div className="bg-white/90 backdrop-blur-md p-2 rounded-2xl shadow-2xl flex flex-col md:flex-row gap-2 max-w-2xl w-full">
           <input type="text" placeholder="検索ワードを入力..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="flex-1 px-4 py-2 rounded-xl border border-gray-300 focus:outline-none focus:border-pink-400 text-gray-800" />
