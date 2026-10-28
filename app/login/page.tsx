@@ -5,28 +5,14 @@ import { createClient } from '@/lib/supabase/client'
 export default function LoginPage() {
   const handleGoogleLogin = async () => {
     const supabase = createClient()
-
-    // ★ クライアントを事前にウォームアップ（Cookieの初期化）
-    await supabase.auth.getSession()
-
-    const { data, error } = await supabase.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo:  `${window.location.origin}/auth/callback`,
-        skipBrowserRedirect: true,
+        // ★ここを書き換え（今開いているURLを自動で使う）
+        redirectTo: `${window.location.origin}/auth/callback`,
       },
     })
-
-    if (error) {
-      console.error('ログインエラー:', error.message)
-      return
-    }
-
-    if (data?.url) {
-      // ★ 待機時間を1500msに延長
-      await new Promise((resolve) => setTimeout(resolve, 800))
-      window.location.href = data.url
-    }
+    if (error) console.error('ログインエラー:', error.message)
   }
 
   return (

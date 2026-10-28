@@ -30,6 +30,7 @@ function Petal() {
   return <img src="/petal.png" alt="" className="petal" style={style} />
 }
 
+// 座標からカテゴリを判定する関数
 function getCategoryFromPosition(x: number, y: number): CategoryKey {
   const TOP_BOTTOM = 0.3
   if (y < TOP_BOTTOM) return 'liminal'
@@ -43,6 +44,7 @@ function getCategoryFromPosition(x: number, y: number): CategoryKey {
 
 export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const imgRef = useRef<HTMLImageElement>(null) // 画像の位置を測る用
   const [user, setUser] = useState<any>(null)
   const [mounted, setMounted] = useState(false)
   const [isZooming, setIsZooming] = useState(false)
@@ -62,20 +64,56 @@ export default function Home() {
       ctx?.drawImage(img, 0, 0)
     }
 
+    // ★ ログイン状態の監視（これでリロードしてもログアウトされません）
     const supabase = createClient()
     supabase.auth.getSession().then(({ data }: any) => {
       setUser(data.session?.user || null)
     })
+
+   const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
+  setUser(session?.user || null)
+})
+
+    return () => subscription.unsubscribe()
   }, [])
 
   const handleClick = (e: React.MouseEvent<HTMLImageElement>) => {
     if (isZooming) return
     const canvas = canvasRef.current
-    if (!canvas) return
+    const imgElement = imgRef.current
+    if (!canvas || !imgElement) return
 
+    // 画面全体（imgタグ）のサイズと位置
     const rect = e.currentTarget.getBoundingClientRect()
-    const xRatio = (e.clientX - rect.left) / rect.width
-    const yRatio = (e.clientY - rect.top) / rect.height
+    
+    // 画像自体の比率と、画面に表示されている比率を計算
+    const imageRatio = canvas.width / canvas.height
+    const containerRatio = rect.width / rect.height
+
+    let renderedWidth, renderedHeight, offsetX, offsetY
+
+    // object-cover の計算（画像がはみ出さないように表示されている領域を計算）
+    if (containerRatio > imageRatio) {
+      renderedWidth = rect.width
+      renderedHeight = rect.width / imageRatio
+      offsetX = 0
+      offsetY = (rect.height - renderedHeight) / 2
+    } else {
+      renderedHeight = rect.height
+      renderedWidth = rect.height * imageRatio
+      offsetX = (rect.width - renderedWidth) / 2
+      offsetY = 0
+    }
+
+    // クリックした位置から、元の画像の座標を逆算
+    const clickXOnImage = e.clientX - rect.left - offsetX
+    const clickYOnImage = e.clientY - rect.top - offsetY
+
+    const xRatio = clickXOnImage / renderedWidth
+    const yRatio = clickYOnImage / renderedHeight
+
+    // 画像の範囲外なら無視
+    if (xRatio < 0 || xRatio > 1 || yRatio < 0 || yRatio > 1) return
 
     const canvasX = Math.floor(xRatio * canvas.width)
     const canvasY = Math.floor(yRatio * canvas.height)
@@ -117,6 +155,7 @@ export default function Home() {
       <canvas ref={canvasRef} className="hidden" />
 
       <img
+        ref={imgRef}
         src="/sakura-tree.png"
         alt="桜の木"
         onClick={handleClick}
@@ -135,7 +174,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ★ ヘッダー */}
       <div className="absolute top-0 left-0 right-0 z-20 flex justify-between items-center p-4">
         <div className="flex items-center gap-4">
           <h1 className="text-2xl font-bold text-white drop-shadow-lg">📚 ネットスラング辞書</h1>
@@ -144,14 +182,11 @@ export default function Home() {
           {user ? (
             <>
               <span className="text-white text-sm drop-shadow hidden md:inline">{user.email}</span>
-              
-              {/* ★ 管理者のみ表示 */}
               {user.email === 'syuuyou2014@gmail.com' && (
                 <Link href="/admin" className="px-3 py-2 bg-yellow-500/80 text-white rounded-lg hover:bg-yellow-600 cursor-pointer text-sm font-bold">
                   👑 管理
                 </Link>
               )}
-
               <Link href="/list" className="px-4 py-2 bg-white/90 text-gray-800 rounded-lg hover:bg-white cursor-pointer">辞書を見る</Link>
               <button onClick={handleLogout} className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 cursor-pointer">ログアウト</button>
             </>
@@ -161,7 +196,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* 検索バー */}
       <div className="absolute bottom-8 left-0 right-0 z-20 flex justify-center px-4">
         <div className="bg-white/90 backdrop-blur-md p-2 rounded-2xl shadow-2xl flex flex-col md:flex-row gap-2 max-w-2xl w-full">
           <input type="text" placeholder="検索ワードを入力..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="flex-1 px-4 py-2 rounded-xl border border-gray-300 focus:outline-none focus:border-pink-400 text-gray-800" />
