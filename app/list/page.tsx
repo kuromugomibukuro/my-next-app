@@ -23,6 +23,7 @@ export default function ListPage() {
     liminal: true,
   })
 
+  // データ取得用の関数
   const fetchData = () => {
     const supabase = createClient()
     supabase
@@ -36,12 +37,15 @@ export default function ListPage() {
 
   useEffect(() => {
     const supabase = createClient()
+    // ログインユーザーの取得
     supabase.auth.getSession().then(({ data }: any) => {
       setUser(data.session?.user || null)
     })
+    // 一覧データの取得
     fetchData()
   }, [])
 
+  // フィルタの切り替え
   const toggleFilter = (key: CategoryKey) => {
     setFilters((prev) => ({ ...prev, [key]: !prev[key] }))
   }
@@ -67,6 +71,7 @@ export default function ListPage() {
     fetchData() // 一覧を再取得
   }
 
+  // フィルタリングされた語彙一覧
   const filteredWords = words.filter((w) => {
     const cat = (w.category || 'dark') as CategoryKey
     return filters[cat] ?? true
@@ -76,6 +81,7 @@ export default function ListPage() {
 
   return (
     <div className="max-w-3xl mx-auto p-6">
+      {/* ヘッダー */}
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold text-pink-600">📚 ネットスラング辞書</h1>
         <div className="flex gap-2 items-center">
@@ -92,6 +98,7 @@ export default function ListPage() {
         <p className="text-xs text-gray-500 mb-2">👑 管理者モード</p>
       )}
 
+      {/* フィルタボタン */}
       <div className="flex gap-2 mb-6 flex-wrap">
         {(Object.keys(CATEGORIES) as CategoryKey[]).map((key) => (
           <button
@@ -108,6 +115,7 @@ export default function ListPage() {
         ))}
       </div>
 
+      {/* 投稿一覧 */}
       {filteredWords.length > 0 ? (
         filteredWords.map((word) => {
           const cat = (word.category || 'dark') as CategoryKey
@@ -116,40 +124,52 @@ export default function ListPage() {
           return (
             <div
               key={word.id}
-              className="border border-gray-200 rounded-lg p-4 mb-4 hover:shadow-md transition"
+              className="relative border border-gray-200 rounded-lg mb-4 hover:shadow-md transition bg-white group"
             >
-              <div className="flex justify-between items-start gap-2">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h2 className="text-xl font-bold">{word.word}</h2>
-                    <span className={`text-xs px-2 py-1 rounded text-white ${CATEGORIES[cat].color}`}>
-                      {CATEGORIES[cat].label}
-                    </span>
-                  </div>
-                  {word.user_email && (
-                    <p className="text-xs text-gray-500 mb-2">投稿者: {word.user_email}</p>
-                  )}
+              {/* カード全体を覆うリンク */}
+              <Link href={`/thread/${word.id}`} className="block p-4">
+                <div className="flex items-center gap-2 mb-1 pr-16"> {/* pr-16で削除ボタンのスペースを空ける */}
+                  <h2 className="text-xl font-bold group-hover:text-pink-600 transition-colors">
+                    {word.word}
+                  </h2>
+                  <span className={`text-xs px-2 py-1 rounded text-white ${CATEGORIES[cat].color}`}>
+                    {CATEGORIES[cat].label}
+                  </span>
                 </div>
-
-                {canDelete && (
-                  <button
-                    onClick={() => handleDelete(word.id, word.word)}
-                    className="text-red-500 hover:text-red-700 text-sm px-2 py-1 rounded hover:bg-red-50 cursor-pointer"
-                    title="削除"
-                  >
-                    🗑️ 削除
-                  </button>
+                
+                {word.user_email && (
+                  <p className="text-xs text-gray-500 mb-2">投稿者: {word.user_email}</p>
                 )}
-              </div>
 
-              {word.meanings && word.meanings.length > 0 ? (
-                <ul className="mt-2 list-disc list-inside text-gray-700">
-                  {word.meanings.map((m: any) => (
-                    <li key={m.id}>{m.meaning}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-gray-400 text-sm">まだ意味が投稿されていません</p>
+                {word.meanings && word.meanings.length > 0 ? (
+                  <ul className="mt-2 list-disc list-inside text-gray-700">
+                    {word.meanings.map((m: any) => (
+                      <li key={m.id}>{m.meaning}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-gray-400 text-sm">まだ意味が投稿されていません</p>
+                )}
+                
+                {/* クリックを促す小さなテキスト */}
+                <div className="mt-3 text-xs text-pink-500 font-bold opacity-0 group-hover:opacity-100 transition-opacity">
+                  クリックして会話を見る →
+                </div>
+              </Link>
+
+              {/* 削除ボタン（リンクの上に絶対配置で重ねる） */}
+              {canDelete && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault() // Linkの遷移を止める
+                    e.stopPropagation() // イベントの伝播を止める
+                    handleDelete(word.id, word.word)
+                  }}
+                  className="absolute top-4 right-4 z-10 text-red-500 hover:text-red-700 text-sm px-2 py-1 rounded hover:bg-red-50 cursor-pointer"
+                  title="削除"
+                >
+                  🗑️ 削除
+                </button>
               )}
             </div>
           )

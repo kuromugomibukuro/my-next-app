@@ -1,5 +1,9 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+'use client'
+
+import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import BackToSakuraButton from '@/app/components/BackToSakuraButton'
 
 const CATEGORIES = {
@@ -10,147 +14,139 @@ const CATEGORIES = {
 
 type CategoryKey = keyof typeof CATEGORIES
 
-export default async function SubmitPage({
+const Sparkle = ({ className, style }: { className?: string, style?: React.CSSProperties }) => (
+  <svg viewBox="0 0 100 100" className={className} style={style} fill="currentColor">
+    <path d="M50 0 C52 40 60 48 100 50 C60 52 52 60 50 100 C48 60 40 52 0 50 C40 48 48 40 50 0 Z" />
+  </svg>
+)
+
+export default function SubmitPage({
   searchParams,
 }: {
   searchParams: Promise<{ category?: string }>
 }) {
-  const params = await searchParams
-  const rawCategory = params.category || 'funny'
-  const category = (rawCategory in CATEGORIES ? rawCategory : 'funny') as CategoryKey
+  const router = useRouter()
+  const [category, setCategory] = useState<CategoryKey>('funny')
+  const [words, setWords] = useState<any[]>([])
+  const [user, setUser] = useState<any>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // ログインチェック
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  useEffect(() => {
+    const init = async () => {
+      const params = await searchParams
+      const rawCategory = params.category || 'funny'
+      const currentCategory = (rawCategory in CATEGORIES ? rawCategory : 'funny') as CategoryKey
+      setCategory(currentCategory)
 
-  if (!user) {
-    redirect('/login')
-  }
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        router.push('/login')
+        return
+      }
+      setUser(user)
 
-  // 背景に表示する語彙一覧を取得（クリックしたカテゴリのみ）
-  const { data: words } = await supabase
-    .from('words')
-    .select('*, meanings(*)')
-    .eq('category', category)
-    .order('created_at', { ascending: false })
+      const { data } = await supabase
+        .from('words')
+        .select('*, meanings(*)')
+        .eq('category', currentCategory)
+        .order('created_at', { ascending: false })
+      setWords(data || [])
+    }
+    init()
+  }, [searchParams, router])
 
-  async function handleSubmit(formData: FormData) {
-    'use server'
-
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
     const word = formData.get('word') as string
     const meaning = formData.get('meaning') as string
-    const category = formData.get('category') as string
-
+    
     if (!word || !meaning) return
 
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    setIsSubmitting(true)
+
+    const supabase = createClient()
 
     const { data: wordData, error: wordError } = await supabase
       .from('words')
-      .insert({ word, user_email: user.email, category })
+      .insert({ word, user_email: user?.email, category })
       .select()
       .single()
 
-    if (wordError) return
+    if (wordError || !wordData) {
+      alert("投稿に失敗しました")
+      setIsSubmitting(false)
+      return
+    }
 
-    const { error: meaningError } = await supabase
-      .from('meanings')
-      .insert({ word_id: wordData.id, meaning })
+    await supabase.from('meanings').insert({ word_id: wordData.id, meaning })
 
-    if (meaningError) return
-
-    redirect('/list')
+    // 0.7秒後に、今作った語彙の会話画面（スレッド）へ飛ぶ
+    setTimeout(() => {
+      router.push(`/thread/${wordData.id}`)
+    }, 700)
   }
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-gray-900">
-      {/* 背景：桜の画像 */}
-      <img
-        src="/sakura-tree.png"
-        alt="背景"
-        className="absolute inset-0 w-full h-full object-cover z-0"
-      />
+      <img src="/sakura-tree.png" alt="背景" className="absolute inset-0 w-full h-full object-cover z-0" />
 
-      {/* ★ デバッグ用：取得件数を画面左上に大きく表示 */}
-      <div className="absolute top-4 left-4 z-50 bg-black/80 text-white px-4 py-2 rounded-lg font-bold text-xl">
-        DB取得件数: {words?.length || 0} 件
-      </div>
-
-      {/* 背景：クリックしたカテゴリの語彙一覧（左側に寄せる） */}
       <div className="absolute inset-0 z-10 pointer-events-none overflow-y-auto flex flex-col items-start pt-24 pb-10 pl-4 md:pl-10 w-full md:w-1/2">
         <div className="w-full max-w-lg">
-          {words && words.length > 0 ? (
-            words.map((word) => (
-              <div key={word.id} className="border border-white/20 p-4 mb-4 rounded-xl bg-black/70 text-white shadow-lg backdrop-blur-md">
-                <h2 className="text-xl font-bold">{word.word}</h2>
-                <ul className="list-disc list-inside text-sm mt-2 text-gray-200">
-                  {word.meanings?.map((m: any) => <li key={m.id}>{m.meaning}</li>)}
-                </ul>
-              </div>
-            ))
-          ) : (
-            <p className="text-white bg-red-500/80 p-4 rounded-lg text-center font-bold">
-              データがありません（0件）
-            </p>
-          )}
+          {words.map((word) => (
+            <div key={word.id} className="border border-white/20 p-4 mb-4 rounded-xl bg-black/70 text-white shadow-lg backdrop-blur-md">
+              <h2 className="text-xl font-bold">{word.word}</h2>
+              <ul className="list-disc list-inside text-sm mt-2 text-gray-200">
+                {word.meanings?.map((m: any) => <li key={m.id}>{m.meaning}</li>)}
+              </ul>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* 前景：投稿フォーム（右側に寄せる） */}
       <div className="relative z-20 max-w-2xl mx-auto p-6 min-h-screen flex flex-col justify-center md:ml-auto md:mr-10">
         <BackToSakuraButton />
-
         <div className="bg-white/95 backdrop-blur-xl border border-white/50 rounded-2xl shadow-2xl p-8">
-          <h1 className="text-2xl font-bold mb-2 text-gray-800">
-            ✏️ 新しい語彙を投稿
-          </h1>
-
+          <h1 className="text-2xl font-bold mb-2 text-gray-800">✏️ 新しい語彙・会話を投稿</h1>
           <div className="mb-6">
             <span className={`text-sm text-white px-3 py-1 rounded-full ${CATEGORIES[category].color}`}>
               {CATEGORIES[category].label}
             </span>
           </div>
-
-          <form action={handleSubmit}>
-            <input type="hidden" name="category" value={category} />
-
+          <form onSubmit={handleSubmit}>
             <div className="mb-5">
-              <label className="block font-bold mb-2 text-gray-700">
-                語彙 <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                name="word"
-                required
-                placeholder="例：わからない"
-                className="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-pink-400 focus:outline-none transition bg-white/80"
-              />
+              <label className="block font-bold mb-2 text-gray-700">語彙・テーマ <span className="text-red-500">*</span></label>
+              <input type="text" name="word" required placeholder="例：わからない" className="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-pink-400 focus:outline-none transition bg-white/80" />
             </div>
-
             <div className="mb-6">
-              <label className="block font-bold mb-2 text-gray-700">
-                意味 <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                name="meaning"
-                required
-                rows={4}
-                placeholder="例：理解できない・共感できない"
-                className="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-pink-400 focus:outline-none transition resize-vertical bg-white/80"
-              />
+              <label className="block font-bold mb-2 text-gray-700">意味・定義（主催者の意図） <span className="text-red-500">*</span></label>
+              <textarea name="meaning" required rows={4} placeholder="例：理解できない・共感できない" className="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-pink-400 focus:outline-none transition resize-vertical bg-white/80" />
             </div>
-
-            <button
-              type="submit"
-              className="w-full py-3 bg-pink-500 text-white font-bold rounded-lg hover:bg-pink-600 transition cursor-pointer shadow-lg"
-            >
-              投稿する
+            <button type="submit" disabled={isSubmitting} className="w-full py-3 bg-pink-500 text-white font-bold rounded-lg hover:bg-pink-600 transition cursor-pointer shadow-lg disabled:opacity-50">
+              {isSubmitting ? '送信中...' : '投稿して会話を始める'}
             </button>
           </form>
         </div>
       </div>
+
+      <AnimatePresence>
+        {isSubmitting && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center overflow-hidden">
+            <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: [0, 3, 0], opacity: [0, 1, 0] }} transition={{ duration: 0.7, ease: 'easeOut' }} className="absolute w-32 h-32 bg-white rounded-full blur-2xl" />
+            {[...Array(8)].map((_, i) => {
+              const startX = (Math.random() - 0.5) * window.innerWidth
+              const startY = (Math.random() - 0.5) * window.innerHeight
+              const size = 10 + Math.random() * 30
+              return (
+                <motion.div key={i} initial={{ x: startX, y: startY, scale: 1, opacity: 1, rotate: 0 }} animate={{ x: 0, y: -50, scale: 0, opacity: 0, rotate: 180 }} transition={{ duration: 0.7, ease: 'easeIn', delay: Math.random() * 0.2 }} className="absolute text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]">
+                  <Sparkle style={{ width: size, height: size }} />
+                </motion.div>
+              )
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
