@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import BackToSakuraButton from '@/app/components/BackToSakuraButton'
+import Link from 'next/link'
 
 const CATEGORIES = {
   funny:   { label: '🎉 面白い系', color: 'bg-pink-500' },
@@ -20,24 +20,15 @@ const Sparkle = ({ className, style }: { className?: string, style?: React.CSSPr
   </svg>
 )
 
-export default function SubmitPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ category?: string }>
-}) {
+export default function SubmitPage() {
   const router = useRouter()
-  const [category, setCategory] = useState<CategoryKey>('funny')
+  const [category, setCategory] = useState<CategoryKey>('funny') // デフォルトは面白い系
   const [words, setWords] = useState<any[]>([])
   const [user, setUser] = useState<any>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
     const init = async () => {
-      const params = await searchParams
-      const rawCategory = params.category || 'funny'
-      const currentCategory = (rawCategory in CATEGORIES ? rawCategory : 'funny') as CategoryKey
-      setCategory(currentCategory)
-
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
@@ -46,15 +37,16 @@ export default function SubmitPage({
       }
       setUser(user)
 
+      // 背景用に「面白い系」のデータを取得しておく
       const { data } = await supabase
         .from('words')
         .select('*, meanings(*)')
-        .eq('category', currentCategory)
+        .eq('category', 'funny')
         .order('created_at', { ascending: false })
       setWords(data || [])
     }
     init()
-  }, [searchParams, router])
+  }, [router])
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -89,9 +81,9 @@ export default function SubmitPage({
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-gray-900">
-      <img src="/sakura-tree.png" alt="背景" className="absolute inset-0 w-full h-full object-cover z-0" />
+      {/* 背景 */}
+      <img src="/sakura-tree.png" alt="背景" className="absolute inset-0 w-full h-full object-cover z-0 opacity-50" />
 
-      {/* ★ 背景：語彙一覧（スマホでは隠す → hidden md:flex） */}
       <div className="hidden md:flex absolute inset-y-0 left-0 z-10 pointer-events-none overflow-y-auto flex-col items-start pt-24 pb-10 pl-10 w-1/2">
         <div className="w-full max-w-lg">
           {words.map((word) => (
@@ -105,17 +97,37 @@ export default function SubmitPage({
         </div>
       </div>
 
-      {/* ★ 前景：フォーム（スマホでは幅いっぱい） */}
       <div className="relative z-20 max-w-2xl mx-auto p-6 min-h-screen flex flex-col justify-center md:ml-auto md:mr-10 w-full md:w-auto">
-        <BackToSakuraButton />
+        {/* ★ 「トップへ戻る」に変更 */}
+        <Link href="/" className="inline-block mb-4 text-white font-bold hover:text-pink-300 drop-shadow-md">
+          ← トップへ戻る
+        </Link>
+        
         <div className="bg-white/95 backdrop-blur-xl border border-white/50 rounded-2xl shadow-2xl p-8">
-          <h1 className="text-2xl font-bold mb-2 text-gray-800">✏️ 新しい語彙・会話を投稿</h1>
-          <div className="mb-6">
-            <span className={`text-sm text-white px-3 py-1 rounded-full ${CATEGORIES[category].color}`}>
-              {CATEGORIES[category].label}
-            </span>
-          </div>
+          <h1 className="text-2xl font-bold mb-4 text-gray-800">✏️ 新しい語彙・会話を投稿</h1>
+          
           <form onSubmit={handleSubmit}>
+            {/* ★ カテゴリ選択ボタンを追加 */}
+            <div className="mb-6">
+              <label className="block font-bold mb-2 text-gray-700">カテゴリを選択</label>
+              <div className="flex flex-wrap gap-2">
+                {(Object.keys(CATEGORIES) as CategoryKey[]).map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setCategory(key)}
+                    className={`px-4 py-2 rounded-lg font-bold transition-all ${
+                      category === key 
+                        ? `${CATEGORIES[key].color} text-white shadow-md transform scale-105` 
+                        : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
+                    }`}
+                  >
+                    {CATEGORIES[key].label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="mb-5">
               <label className="block font-bold mb-2 text-gray-700">語彙・テーマ <span className="text-red-500">*</span></label>
               <input type="text" name="word" required placeholder="例：わからない" className="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-pink-400 focus:outline-none transition bg-white/80" />

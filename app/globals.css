@@ -80,3 +80,17 @@ body {
 .fade-text {
   animation: text-fade 5s ease-in-out infinite;
 }
+
+/* クラゲのようなふよふよ浮遊アニメーション */
+@keyframes jelly-float {
+  0%, 100% {
+    transform: scale(1, 1) translateY(0);
+  }
+  50% {
+    transform: scale(1.2, 1.1) translateY(-10px); /* 横120%、縦110%、少し上に浮く */
+  }
+}
+
+.animate-jelly {
+  animation: jelly-float 3s ease-in-out infinite;
+}

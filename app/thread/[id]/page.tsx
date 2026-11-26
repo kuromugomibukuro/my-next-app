@@ -2,14 +2,14 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import Poll from '@/app/components/poll' // ★投票コンポーネントを追加
 
 const ADMIN_EMAIL = 'syuuyou2014@gmail.com'
 
 export default function ThreadPage() {
   const params = useParams()
-  const router = useRouter()
   const id = params.id as string
 
   const [wordData, setWordData] = useState<any>(null)
@@ -26,6 +26,7 @@ export default function ThreadPage() {
     const { data: { user } } = await supabase.auth.getUser()
     setUser(user)
 
+    // 語彙データ取得
     const { data: word, error } = await supabase
       .from('words')
       .select('*, meanings(*)')
@@ -39,6 +40,7 @@ export default function ThreadPage() {
     }
     setWordData(word)
 
+    // 返信データ取得
     const { data: replyData } = await supabase
       .from('replies')
       .select('*')
@@ -98,19 +100,26 @@ export default function ThreadPage() {
     <div className="min-h-screen bg-gradient-to-b from-pink-50 to-white">
       <div className="max-w-3xl mx-auto p-6">
         
+        {/* ヘッダー */}
         <div className="flex justify-between items-center mb-8">
-          <Link href="/list" className="text-pink-600 hover:text-pink-800 font-bold cursor-pointer">
-            ← 辞書一覧に戻る
-          </Link>
+          <div className="flex gap-4">
+            <Link href="/" className="text-pink-600 hover:text-pink-800 font-bold cursor-pointer">
+              ← トップへ戻る
+            </Link>
+            <Link href="/list" className="text-blue-600 hover:text-blue-800 font-bold cursor-pointer">
+              📚 辞書一覧へ
+            </Link>
+          </div>
           <span className="text-sm text-gray-500">作成者: {wordData.user_email}</span>
         </div>
 
+        {/* 語彙（テーマ）のヘッダー */}
         <div className="bg-white rounded-3xl shadow-xl p-8 mb-8 border border-pink-100 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-pink-400 to-purple-400"></div>
           
-          <div className="flex items-center gap-4 mb-4">
+          <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
             <h1 className="text-4xl md:text-5xl font-extrabold text-gray-800">{wordData.word}</h1>
-            <span className={`text-sm text-white px-3 py-1 rounded-full ${
+            <span className={`text-sm text-white px-3 py-1 rounded-full w-fit ${
               wordData.category === 'funny' ? 'bg-pink-500' : wordData.category === 'dark' ? 'bg-gray-800' : 'bg-purple-500'
             }`}>
               {wordData.category === 'funny' ? '面白い系' : wordData.category === 'dark' ? '物騒系' : '境界面'}
@@ -125,6 +134,14 @@ export default function ThreadPage() {
           </div>
         </div>
 
+        {/* ★ ここに投票機能を追加 */}
+        <Poll 
+          wordId={id} 
+          userEmail={user?.email} 
+          isCreator={user?.email === wordData.user_email} 
+        />
+
+        {/* 会話エリア */}
         <div className="space-y-4 mb-8">
           <h2 className="text-xl font-bold text-gray-700 border-b pb-2">💬 この語彙についての会話</h2>
           
@@ -159,6 +176,7 @@ export default function ThreadPage() {
           )}
         </div>
 
+        {/* 返信フォーム */}
         <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
           <h3 className="font-bold text-gray-700 mb-4">✍️ 会話に参加する</h3>
           {user ? (
